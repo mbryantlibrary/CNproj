@@ -12,12 +12,11 @@ def mapRange(x,low,high):
     return ((high-low) * (x+1) / 2) + low
 
 class Genotype():
-    def __init__(self,nosc=3):
+    def __init__(self):
         #initialise a uniformly random genome with values in [-1,1]
-        #nosc is the number of oscillators to use
         
-        self.genes = np.random.uniform(-1,1,size=(nosc*4 + 3))
-        self.n = nosc
+        self.genes = np.random.uniform(-1,1,size=(18))
+        self.n = 3
     
     def mutate(self,creep=0.4):
         #add random Gaussian creep to each gene
@@ -37,7 +36,7 @@ class Genotype():
     
     def crossOver(self,otherGeno,pCross=0.05):
         #copy genes from another genotype with probability pCross
-        #helps proliferate 'good' genes in the population
+        #helps keep 'good' genes in the population
         for i,gene in enumerate(self.genes):
             if(np.random.rand() < pCross):
                 gene = otherGeno.genes[i]
@@ -48,23 +47,28 @@ class Genotype():
 class NetParams():    
     def __init__(self,genotype=Genotype(),weights=np.random.uniform(size=3)):
         genes = genotype.genes
-        n = self.n=genotype.n
         self.natFreqs = []
-        self.sensorGains = []
         self.prefPhases = []
+        self.maxOscCouplings = []
+        self.sensorGains = []
         self.plasticityRates = []
-        self.weights = weights
-        for i in range(0,n):
+        self.weights = weights #weights are randomly initialised by default
+        for i in range(0,9,3):
+            #genes 0-8 encode oscillator parameters; 0-2 is osc 1, 4-6 osc 2 etc.
             self.natFreqs.append(mapRange(genes[i],0,5))
-            self.sensorGains.append(mapRange(genes[i+n],-8,8))
-            self.prefPhases.append(mapRange(genes[i+2*n],-np.pi/2,np.pi/2))
-            self.plasticityRates.append(mapRange(genes[i+2*n],0,0.9))
-            
-        self.maxOscCoupling = mapRange(genes[n*4],0,5)
-        self.biasL = mapRange(genes[n*4 + 1],0,2*np.pi)
-        self.biasR = mapRange(genes[n*4 + 2],0,2*np.pi)
+            self.prefPhases.append(mapRange(genes[i + 1],-np.pi/2,np.pi/2))
+            self.maxOscCouplings.append(mapRange(genes[i + 2],0,5))
+        for i in range(9,12):
+            #genes 9-11 encode a rate of plasticity change for each coupling
+            self.plasticityRates.append(mapRange(genes[i],0,0.9))
+        for i in range(12,16):
+            #genes 12-15 encode gains for each sensor: AL, AR, BL, BR
+            self.sensorGains.append(genes[i],-8,8)
+        self.biasL = mapRange(genes[16],0,2*np.pi)
+        self.biasR = mapRange(genes[17],0,2*np.pi)
     
     def reset_weights(self):
+        #called at the start of each fitness run to randomise weights
         self.weights=np.random.uniform(size=3)
     
     def __str__(self):
@@ -81,30 +85,32 @@ class NetParams():
         return s
     
 class GA():
-    def __init__(self,npop=100,gen=200,mut=0.4,cross=0.05,deme=5):
+    def __init__(self,npop=30,gen=100,mut=0.4,cross=0.05,deme=5):
         print("Initialising GA...")
-        self.npop = npop
-        self.gen = gen
-        self.mut = mut
-        self.cross = cross
-        self.deme = deme
-        
+        self.npop = npop #number of individuals
+        self.gen = gen #number of generations to run
+        self.mut = mut #mutation rate, or stdev of Gaussian noise to add
+        self.cross = cross #probability of each gene being copied, between 0 and 1
+        self.deme = deme #deme size for geographic selection, indices selected with no more than this difference
         self.pop = []
         self.fitnesses = []
         self.stats = []
+        #calculate all fitnesses
         for i in range(0,npop):
             print("Calculating %d of %d fitnesses..." % (i+1,npop))
             self.pop.append(Genotype())
             self.fitnesses.append(self.get_fitness(i))
-            
         print("GA initialised.")
     
     def run(self,print_output=False):
+        #performs an entire evolutionary run
         print("Starting GA run...")
         for i in range(0,self.gen):
+            #select two individuals
             (a,b) = self.choose_indices()
             fitA = self.fitnesses[a]
             fitB = self.fitnesses[b]
+            #which is fitter?
             if(fitA > fitB):
                 self.reproduce(a,b)
             else:
@@ -115,11 +121,17 @@ class GA():
         print("Finished")
                 
     def choose_indices(self):
+        #selects two different individuals from a population
+        #with geographic selection - imagine the indices lying on a 1D ring.
+        #individuals are selected from within the deme size, e.g if deme=5
+        #pairs could be (1,5), (95,99), (70,69) but not (30,40).
+        #values are wrapped so (99,3) is a valid pair
         a = np.random.randint(len(self.pop))
         b = 0
-        while(b==0):
+        while(b==0): #can't select same individual twice
             b = np.random.randint(2 * self.deme) - self.deme
         b = a + b
+        #check index not out of bounds and adjust if so
         if(b < 0):
             b = len(self.pop) + b
         elif(b >= len(self.pop)):
@@ -127,8 +139,10 @@ class GA():
         return (a,b)           
     
     def reproduce(self,winner,loser):
+        #do reproduction steps
         self.pop[loser].mutate()
         self.pop[loser].crossOver(self.pop[winner])
+        #genotype is modified so only now do we measure fitness
         self.fitnesses[loser] = self.get_fitness(loser)
     
     def get_fitness(self,index):
@@ -138,6 +152,7 @@ class GA():
         return str(self.pop)
     
 class GAStats():
+    #to keep track of per-generation stats
     def __init__(self,n,fitnesses):
         self.n = n
         self.maxFit = np.max(fitnesses)
@@ -149,11 +164,13 @@ class GAStats():
         return "N = %3i | Max = %f | min = %f | avg = %f | var = %f" % (self.n,self.maxFit, self.minFit, self.avgFit,self.variance)
 
 class Fitness():
+    #calculates fitness of an individual
     def __init__(self,genotype):
         self.netp = NetParams(genotype)
         self.trials = []
     
     def calculate(self):
+        #get average of a run of each different trial type
         sumFit = 0
         sumFit += self.doRun(TrialType.LIGHTA)
         sumFit += self.doRun(TrialType.LIGHTB)
@@ -162,11 +179,15 @@ class Fitness():
         return sumFit/4
     
     def doRun(self,trialtype):
-        self.netp.reset_weights()
+        self.netp.reset_weights() 
+        #weights are initialised to zero at the start of the run
+        #but are persistent throughout the rest of the run to allow plasticity
         for i in range(0,5):
+            #these trials are not evaluated, just for plasticity
             Trial(self.netp,trialtype).run()
         sumFit = 0
         for i in range(0,3):
+            #evaluate three trials for fitness
             t = Trial(self.netp,trialtype)
             sumFit = t.run()
-        return sumFit/3
+        return sumFit/3 #average fitness
