@@ -1,9 +1,7 @@
-from NeuroRobot import Visualiser
-from NeuroRobot.Sim import TrialType, Trial
-from NeuroRobot.GA import NetParams
+from NeuroRobot.Sim import *
+#from NeuroRobot.Visualiser import *
+from NeuroRobot.GA import *
+from NeuroRobot.Controller import *
+import numpy as np
 
-v = Visualiser.Visualiser(trialtype=TrialType.BOTH_BLINKA)
-
-# t = Trial(NetParams(), TrialType.BOTH_BLINKA)
-# t.run()
-# print(t.getDists())
+#ga = GA(npop=25,gen=200)

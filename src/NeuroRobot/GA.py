@@ -1,5 +1,5 @@
 import numpy as np
-from Sim import Trial
+from NeuroRobot.Sim import Trial
 
 '''
 Implements Harvey's Microbial GA (http://www.sussex.ac.uk/Users/inmanh/Microbial.pdf) with 2 player tournament selection, mutation and recombination.
@@ -12,10 +12,10 @@ def mapRange(x,low,high):
     return ((high-low) * (x+1) / 2) + low
 
 class Genotype():
-    def __init__(self):
+    def __init__(self,genes=np.random.uniform(-1,1,size=(21))):
         #initialise a uniformly random genome with values in [-1,1]
         
-        self.genes = np.random.uniform(-1,1,size=(18))
+        self.genes = genes
         self.n = 3
     
     def mutate(self,creep=0.4):
@@ -45,7 +45,7 @@ class Genotype():
         return str(self.genes)
     
 class NetParams():    
-    def __init__(self,genotype=Genotype(),weights=np.random.uniform(size=3)):
+    def __init__(self,genotype=Genotype(),weights=np.random.uniform(size=6)):
         genes = genotype.genes
         self.natFreqs = []
         self.prefPhases = []
@@ -53,19 +53,22 @@ class NetParams():
         self.sensorGains = []
         self.plasticityRates = []
         self.weights = weights #weights are randomly initialised by default
-        for i in range(0,9,3):
+        
+        self.maxOscCoupling= mapRange(genes[0],0,5)
+        for i in range(1,6,2):
             #genes 0-8 encode oscillator parameters; 0-2 is osc 1, 4-6 osc 2 etc.
             self.natFreqs.append(mapRange(genes[i],0,5))
             self.prefPhases.append(mapRange(genes[i + 1],-np.pi/2,np.pi/2))
-            self.maxOscCouplings.append(mapRange(genes[i + 2],0,5))
-        for i in range(9,12):
+        for i in range(7,10):
             #genes 9-11 encode a rate of plasticity change for each coupling
             self.plasticityRates.append(mapRange(genes[i],0,0.9))
-        for i in range(12,16):
+        for i in range(10,14):
             #genes 12-15 encode gains for each sensor: AL, AR, BL, BR
-            self.sensorGains.append(genes[i],-8,8)
-        self.biasL = mapRange(genes[16],0,2*np.pi)
-        self.biasR = mapRange(genes[17],0,2*np.pi)
+            self.sensorGains.append(mapRange(genes[i],-8,8))
+        self.biasL = mapRange(genes[14],0,2*np.pi)
+        self.biasR = mapRange(genes[15],0,2*np.pi)
+        self.H1 = mapRange(genes[16],0,0.2)
+        self.H2 = mapRange(genes[17],0.2,0.25)
     
     def reset_weights(self):
         #called at the start of each fitness run to randomise weights
@@ -148,6 +151,13 @@ class GA():
     def get_fitness(self,index):
         return Fitness(self.pop[index]).calculate()
     
+    def save(self,filename):
+        dataArray = np.array([])
+        for i in range(0,self.npop):
+            dataRow = np.hstack(((self.fitnesses[i],self.pop[i].genes)))
+            dataArray = np.vstack((dataArray,dataRow))
+        np.savetxt(fname=filename,X=dataArray,delimiter=',')
+            
     def __str__(self):
         return str(self.pop)
     
@@ -191,3 +201,4 @@ class Fitness():
             t = Trial(self.netp,trialtype)
             sumFit = t.run()
         return sumFit/3 #average fitness
+    

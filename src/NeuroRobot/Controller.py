@@ -34,21 +34,24 @@ def p(xarr,H1=(0.2*np.pi),H2=(0.8*np.pi)):
     return np.array(rarr)
 
 class Coupling():
-    def __init__(self,nodeA,nodeB,weight=np.random.uniform(),maxOscCoupling=2,plasticityRate = 0.3,prefPhase = 0.2*np.pi):
+    def __init__(self,nodeA,nodeB,weight=np.random.uniform(),maxOscCoupling=2,plasticityRate = 0.3,prefPhase = 0.2*np.pi,H1=0.2,H2=0.25):
         self.nodeA = nodeA
         self.nodeB = nodeB
+        self.H1 = H1
+        self.H2 = H2
         self.weight = weight
         self.plasticityRate = plasticityRate
+        self.maxOscCoupling = maxOscCoupling
         self.prefPhase = prefPhase
         self.updateWeight()
         
     def getPlasticity(self):
-        return p([self.nodeA.phi() - self.prefPhase])
+        return p([self.nodeA.phi() - self.prefPhase], H1=self.H1, H2=self.H2)
     
     def updateWeight(self):
         ddk = self.plasticityRate * self.getPlasticity() * sin(self.nodeA.theta - self.nodeB.theta) - self.prefPhase
         self.weight += np.asscalar(ddk)
-        self.strength = wmFScalar(self.weight)
+        self.strength = self.maxOscCoupling * wmFScalar(self.weight)
 
 class Oscillator():
     def __init__(self,name,natFreq=np.random.uniform(0,6)):
@@ -73,21 +76,21 @@ class Oscillator():
 class KNetwork():
     def __init__(self,netparams,timestep=0.1):
         self.netp = netparams
-        n = netparams.n
         self.nodes = []
         self.timestep = timestep
         self.reporter = Reporter()
         self.biasL = netparams.biasL
         self.biasR = netparams.biasR
         
-        for i in range(0,n):
+        for i in range(0,3):
             self.nodes.append(Oscillator(i,netparams.natFreqs[i]))
         for i,node in enumerate(self.nodes):
             if(i == len(self.nodes)-1):
                 nodeJ = self.nodes[0]
             else:
                 nodeJ = self.nodes[i+1]
-            node.couplings.append(Coupling(node,nodeJ,weight=netparams.weights[i],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[i],prefPhase=netparams.prefPhases[i]))
+            node.couplings.append(Coupling(node,nodeJ,weight=netparams.weights[i],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[i],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
+            node.couplings.append(Coupling(nodeJ,node,weight=netparams.weights[i+3],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[i],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
     
     def getPlasticity(self):
         sumP = 0

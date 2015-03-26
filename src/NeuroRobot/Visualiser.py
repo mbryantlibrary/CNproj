@@ -1,4 +1,4 @@
-from Tkinter import Tk,Canvas,Frame
+from tkinter import Tk,Canvas,Frame
 from GA import Genotype,NetParams
 from Sim import Trial,TrialType
 
