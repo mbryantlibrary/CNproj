@@ -6,6 +6,30 @@ Implements Harvey's Microbial GA (http://www.sussex.ac.uk/Users/inmanh/Microbial
 '''
 from NeuroRobot.Sim import TrialType
 
+def getOriginalAgentGenotype():
+    #Load the genes for the agent evolved in the original Aguilera et al 2015 paper.
+    newGenes = [-0.09677419354838712, #coupling max strength
+         0.4838709677419355, #o1w nat freq
+         0.032258064516129004, #o1ppr
+         0.4193548387096775, #o2w nat freq
+         -0.22580645161290325, #o2ppr
+         0.35483870967741926, #o3w nat freq
+         -0.4193548387096774, #o3ppr
+         -0.3548387096774194,  #c12 eta LR
+         -0.935483870967742,#c13 eta LR
+         -0.8709677419354839, #c21 eta LR
+         0.7419354838709677, #c23 eta LR
+         0.935483870967742, #c31 eta LR
+         -0.4838709677419355, #c32 eta LR
+         -1.0, #s11 AL
+         -0.09677419354838712, #s12 AR
+         -0.935483870967742, #s21 BL
+         0.16129032258064524, #s22 BR
+         0.6774193548387097, #mlb
+         0.09677419354838701,#mrb
+         1.0, #h1
+        0.7419354838709677]#h2
+    return Genotype(genes=newGenes)
 
 def mapRange(x,low,high):
     # map a number from a [-1,1] range to a [low,high] range.
@@ -54,21 +78,22 @@ class NetParams():
         self.plasticityRates = []
         self.weights = weights #weights are randomly initialised by default
         
-        self.maxOscCoupling= mapRange(genes[0],0,5)
+        self.maxOscCoupling= mapRange(genes[0],0,5) #gene 0
         for i in range(1,6,2):
-            #genes 0-8 encode oscillator parameters; 0-2 is osc 1, 4-6 osc 2 etc.
+            #genes 1-6  encode oscillator parameters; 1-2 is osc 1, 3-4 osc 2 etc.
             self.natFreqs.append(mapRange(genes[i],0,5))
             self.prefPhases.append(mapRange(genes[i + 1],-np.pi/2,np.pi/2))
-        for i in range(7,10):
-            #genes 9-11 encode a rate of plasticity change for each coupling
+        for i in range(7,13):
+            #genes 7-13 encode a rate of plasticity change for each coupling
+            #in the order 1-2,1-3,2-1,2-3,3-1,3-2
             self.plasticityRates.append(mapRange(genes[i],0,0.9))
-        for i in range(10,14):
-            #genes 12-15 encode gains for each sensor: AL, AR, BL, BR
+        for i in range(13,17):
+            #genes 13-16 encode gains for each sensor: AL, AR, BL, BR
             self.sensorGains.append(mapRange(genes[i],-8,8))
-        self.biasL = mapRange(genes[14],0,2*np.pi)
-        self.biasR = mapRange(genes[15],0,2*np.pi)
-        self.H1 = mapRange(genes[16],0,0.2)
-        self.H2 = mapRange(genes[17],0.2,0.25)
+        self.biasL = mapRange(genes[17],0,2*np.pi)
+        self.biasR = mapRange(genes[18],0,2*np.pi)
+        self.H1 = mapRange(genes[19],0,0.2)
+        self.H2 = mapRange(genes[20],0.2,0.25)
     
     def reset_weights(self):
         #called at the start of each fitness run to randomise weights

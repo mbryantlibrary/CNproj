@@ -85,13 +85,10 @@ class KNetwork():
         for i in range(0,3):
             self.nodes.append(Oscillator(i,netparams.natFreqs[i]))
         for i,node in enumerate(self.nodes):
-            if(i == len(self.nodes)-1):
-                nodeJ = self.nodes[0]
-            else:
-                nodeJ = self.nodes[i+1]
-            node.couplings.append(Coupling(node,nodeJ,weight=netparams.weights[i],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[i],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
-            node.couplings.append(Coupling(nodeJ,node,weight=netparams.weights[i+3],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[i],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
-    
+            for nodeJ in self.nodes:
+                node.couplings.append(Coupling(node,nodeJ,weight=netparams.weights[i],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[2*i],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
+                node.couplings.append(Coupling(nodeJ,node,weight=netparams.weights[i+3],maxOscCoupling=netparams.maxOscCoupling,plasticityRate=netparams.plasticityRates[2*i+1],prefPhase=netparams.prefPhases[i],H1=netparams.H1,H2=netparams.H2))
+            
     def getPlasticity(self):
         sumP = 0
         for node in self.nodes:
